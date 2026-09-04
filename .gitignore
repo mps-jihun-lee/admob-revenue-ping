@@ -1,0 +1,8 @@
+node_modules/
+.env
+.data/
+config.json
+client_secret*.json
+credentials*.json
+*.log
+.DS_Store

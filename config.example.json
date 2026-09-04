@@ -1,0 +1,8 @@
+{
+  "publisherId": "pub-1234567890123456",
+  "reportType": "mediation",
+  "oauthClientFile": ".data/oauth-client.json",
+  "oauthTokenFile": ".data/oauth-token.json",
+  "stateFile": ".data/state.json",
+  "discordWebhookEnv": "DISCORD_WEBHOOK_URL"
+}
