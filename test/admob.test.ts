@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseReport } from "../src/admob.js";
+import { parseReport, parseTotalEarnings } from "../src/admob.js";
 
 test("스트리밍 보고서에서 앱별 수익과 노출수를 읽는다", () => {
   const result = parseReport([
@@ -29,4 +29,14 @@ test("스트리밍 보고서에서 앱별 수익과 노출수를 읽는다", () 
 
 test("행이 없는 보고서는 수익 0건으로 처리한다", () => {
   assert.deepEqual(parseReport([{ header: {} }, { footer: {} }]), []);
+});
+
+test("전체 기간 보고서에서 누적 수익을 읽는다", () => {
+  const result = parseTotalEarnings([
+    { header: {} },
+    { row: { metricValues: { ESTIMATED_EARNINGS: { microsValue: "72430000" } } } },
+    { footer: {} },
+  ]);
+
+  assert.equal(result, 72_430_000);
 });

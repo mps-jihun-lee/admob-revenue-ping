@@ -15,6 +15,8 @@ test("같은 날짜의 알림은 성공 후 다시 보내지 않는다", async (
     oauthTokenFile: "unused",
     stateFile: join(directory, "state.json"),
     discordWebhookEnv: "DISCORD_WEBHOOK_URL",
+    cumulativeStartDate: { year: 2018, month: 1, day: 1 },
+    payoutTarget: 100,
   };
   let reportCalls = 0;
   let notifications = 0;
@@ -34,6 +36,9 @@ test("같은 날짜의 알림은 성공 후 다시 보내지 않는다", async (
         earningsMicros: 1_000_000,
         impressions: 10,
       }];
+    },
+    async getCumulativeRevenue() {
+      return 42_000_000;
     },
   };
   const notifier = {
@@ -61,6 +66,8 @@ test("전송 실패 시 날짜를 기록하지 않아 다음 실행에서 재시
     oauthTokenFile: "unused",
     stateFile: join(directory, "state.json"),
     discordWebhookEnv: "DISCORD_WEBHOOK_URL",
+    cumulativeStartDate: { year: 2018, month: 1, day: 1 },
+    payoutTarget: 100,
   };
   const client = {
     async getAccount() {
@@ -72,6 +79,9 @@ test("전송 실패 시 날짜를 기록하지 않아 다음 실행에서 재시
     },
     async getDailyRevenue() {
       return [];
+    },
+    async getCumulativeRevenue() {
+      return 42_000_000;
     },
   };
   let attempts = 0;

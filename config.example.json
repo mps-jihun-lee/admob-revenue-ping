@@ -4,5 +4,7 @@
   "oauthClientFile": ".data/oauth-client.json",
   "oauthTokenFile": ".data/oauth-token.json",
   "stateFile": ".data/state.json",
-  "discordWebhookEnv": "DISCORD_WEBHOOK_URL"
+  "discordWebhookEnv": "DISCORD_WEBHOOK_URL",
+  "cumulativeStartDate": "2018-01-01",
+  "payoutTarget": 100
 }

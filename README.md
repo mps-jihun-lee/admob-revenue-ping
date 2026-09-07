@@ -1,6 +1,6 @@
 # AdMob Revenue Ping
 
-AdMob의 전날 예상 수익을 앱별로 집계해 Discord로 보내는 작은 일일 알리미입니다.
+AdMob의 전날 예상 수익과 전체 누적 예상 수익을 집계해 Discord로 보내는 작은 일일 알리미입니다.
 
 ```text
 AdMob Reporting API ──> 전날 앱별 수익 집계 ──> Discord
@@ -18,6 +18,11 @@ AdMob Reporting API ──> 전날 앱별 수익 집계 ──> Discord
 
 노출수: 18,420
 eCPM: ₩675
+
+📈 누적 예상 수익 (2026-01-01~2026-09-03)
+₩72,430 / ₩100,000 (72.4%)
+진행률: ███████░░░
+지급 목표까지 ₩27,570 남음
 ```
 
 날짜는 실행 환경이 아니라 **AdMob 계정의 보고 시간대**를 따릅니다. 같은 날짜는 한 번만 보내며, Discord 전송에 실패하면 다음 실행에서 재시도합니다.
@@ -39,7 +44,7 @@ cp .env.example .env
 mkdir -p .data
 ```
 
-`config.json`의 `publisherId`를 자신의 AdMob 게시자 ID로 바꿉니다. 게시자 ID는 AdMob의 **설정 > 계정 정보**에서 확인할 수 있습니다.
+`config.json`의 `publisherId`를 자신의 AdMob 게시자 ID로 바꿉니다. 게시자 ID는 AdMob의 **설정 > 계정 정보**에서 확인할 수 있습니다. `cumulativeStartDate`는 누적 예상 수익을 계산할 시작일이며, 아직 지급받은 적이 없다면 기본값을 그대로 사용할 수 있습니다. 지급 후에는 마지막 지급 다음 날로 변경하세요. `payoutTarget`은 AdMob 계정 통화 기준 목표 금액입니다.
 
 `.env`에는 Discord 채널의 **채널 설정 > 연동 > 웹후크**에서 만든 URL을 넣습니다.
 
@@ -104,7 +109,9 @@ cron의 시간대는 실행 서버 설정을 따르지만, 조회 대상 날짜�
   "oauthClientFile": ".data/oauth-client.json",
   "oauthTokenFile": ".data/oauth-token.json",
   "stateFile": ".data/state.json",
-  "discordWebhookEnv": "DISCORD_WEBHOOK_URL"
+  "discordWebhookEnv": "DISCORD_WEBHOOK_URL",
+  "cumulativeStartDate": "2018-01-01",
+  "payoutTarget": 100
 }
 ```
 
@@ -122,7 +129,7 @@ pnpm check
 
 ## 주의사항
 
-- 알림 금액은 `ESTIMATED_EARNINGS`이며 실제 지급액이 아닙니다. 무효 활동 조정 등으로 월말 확정액과 달라질 수 있습니다.
+- 일일·누적 알림 금액은 `ESTIMATED_EARNINGS`이며 실제 지급 잔액이 아닙니다. 무효 활동 조정 등으로 월말 확정액과 달라질 수 있습니다.
 - OAuth 토큰, 클라이언트 JSON, Discord 웹훅을 커밋하지 마세요.
 - AdMob API 응답에 앱 행이 없으면 수익과 노출수 0으로 알립니다.
 

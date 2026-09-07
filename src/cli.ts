@@ -11,6 +11,9 @@ if (command === "demo") {
   console.log(formatMessage({
     date: { year: 2026, month: 9, day: 3 },
     currencyCode: "KRW",
+    cumulativeStartDate: { year: 2026, month: 1, day: 1 },
+    cumulativeEarningsMicros: 72_430_000_000,
+    payoutTargetMicros: 100_000_000_000,
     apps: [
       { appId: "demo-1", appName: "앱 A", earningsMicros: 8_210_000_000, impressions: 12_300 },
       { appId: "demo-2", appName: "앱 B", earningsMicros: 4_220_000_000, impressions: 6_120 },

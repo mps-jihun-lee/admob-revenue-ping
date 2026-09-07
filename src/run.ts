@@ -12,7 +12,7 @@ export interface RunResult {
 
 export async function runOnce(
   config: Config,
-  client: Pick<AdMobClient, "getAccount" | "getDailyRevenue">,
+  client: Pick<AdMobClient, "getAccount" | "getDailyRevenue" | "getCumulativeRevenue">,
   notifier: Notifier,
   options: { now?: Date; force?: boolean } = {},
 ): Promise<RunResult> {
@@ -26,13 +26,29 @@ export async function runOnce(
     return { date: key, sent: false, appCount: 0 };
   }
 
-  const apps = await client.getDailyRevenue(
-    config.publisherId,
-    config.reportType,
+  const [apps, cumulativeEarningsMicros] = await Promise.all([
+    client.getDailyRevenue(
+      config.publisherId,
+      config.reportType,
+      date,
+      account.currencyCode,
+    ),
+    client.getCumulativeRevenue(
+      config.publisherId,
+      config.reportType,
+      config.cumulativeStartDate,
+      date,
+      account.currencyCode,
+    ),
+  ]);
+  await notifier.send({
     date,
-    account.currencyCode,
-  );
-  await notifier.send({ date, currencyCode: account.currencyCode, apps });
+    currencyCode: account.currencyCode,
+    apps,
+    cumulativeStartDate: config.cumulativeStartDate,
+    cumulativeEarningsMicros,
+    payoutTargetMicros: config.payoutTarget * 1_000_000,
+  });
   await store.markSent(key);
   return { date: key, sent: true, appCount: apps.length };
 }

@@ -64,6 +64,29 @@ export class AdMobClient {
     });
     return parseReport(response.data);
   }
+
+  async getCumulativeRevenue(
+    publisherId: string,
+    reportType: ReportType,
+    startDate: CalendarDate,
+    endDate: CalendarDate,
+    currencyCode: string,
+  ): Promise<number> {
+    const report = reportType === "mediation" ? "mediationReport" : "networkReport";
+    const url = `https://admob.googleapis.com/v1/accounts/${encodeURIComponent(publisherId)}/${report}:generate`;
+    const response = await this.auth.request<ReportEnvelope[]>({
+      url,
+      method: "POST",
+      data: {
+        reportSpec: {
+          dateRange: { startDate, endDate },
+          metrics: ["ESTIMATED_EARNINGS"],
+          localizationSettings: { currencyCode, languageCode: "ko-KR" },
+        },
+      },
+    });
+    return parseTotalEarnings(response.data);
+  }
 }
 
 export function parseReport(envelopes: ReportEnvelope[]): AppRevenue[] {
@@ -80,6 +103,13 @@ export function parseReport(envelopes: ReportEnvelope[]): AppRevenue[] {
       impressions: metricNumber(impressions, "integer"),
     }];
   });
+}
+
+export function parseTotalEarnings(envelopes: ReportEnvelope[]): number {
+  return envelopes.reduce((total, envelope) => {
+    const earnings = envelope.row?.metricValues?.ESTIMATED_EARNINGS;
+    return total + metricNumber(earnings, "micros");
+  }, 0);
 }
 
 function metricNumber(value: MetricValue | undefined, kind: "micros" | "integer"): number {
