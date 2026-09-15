@@ -63,18 +63,18 @@ export function formatMessage(notification: RevenueNotification): string {
   const sorted = [...apps].sort((a, b) => b.earningsMicros - a.earningsMicros);
   const number = new Intl.NumberFormat("ko-KR");
   const platformNames = ["Android", "iOS"];
+  const defaultAppName = shortAppName(sorted[0]?.appName ?? "앱");
   const platformSummaries = platformNames.map((platform) => {
     const platformApps = sorted.filter((app) => normalizePlatform(app.platform) === platform);
     return {
       platform,
-      apps: platformApps,
+      appName: shortAppName(platformApps[0]?.appName ?? defaultAppName),
       earningsMicros: platformApps.reduce((sum, app) => sum + app.earningsMicros, 0),
       impressions: platformApps.reduce((sum, app) => sum + app.impressions, 0),
     };
   });
   const android = platformSummaries[0]!;
   const ios = platformSummaries[1]!;
-  const otherApps = sorted.filter((app) => !platformNames.includes(normalizePlatform(app.platform)));
   const lines = [
     `💰 **AdMob 일일 수익 — ${date.month}월 ${date.day}일**`,
     "",
@@ -83,25 +83,12 @@ export function formatMessage(notification: RevenueNotification): string {
     `노출수: ${number.format(totalImpressions)}회`,
     `eCPM: ${money(eCpmMicros)}`,
     "",
-    "📊 **플랫폼 비교**",
+    "📊 **플랫폼별 수익**",
     ...platformSummaries.map((summary) => (
-      `${platformIcon(summary.platform)} ${summary.platform}: **${money(summary.earningsMicros)}** · 노출 ${number.format(summary.impressions)}회`
+      `${platformIcon(summary.platform)} ${summary.appName} ${summary.platform}: **${money(summary.earningsMicros)}** · 노출 ${number.format(summary.impressions)}회`
     )),
     comparisonLine("수익", android.earningsMicros, ios.earningsMicros, money),
     comparisonLine("노출", android.impressions, ios.impressions, (value) => `${number.format(value)}회`),
-    "",
-    "📱 **앱별 상세**",
-    ...platformSummaries.flatMap((summary) => [
-      `**${platformIcon(summary.platform)} ${summary.platform}**`,
-      ...(summary.apps.length === 0
-        ? ["• 수익 데이터 없음"]
-        : summary.apps.map((app) => (
-          `• ${app.appName}: ${money(app.earningsMicros)} · 노출 ${number.format(app.impressions)}회`
-        ))),
-    ]),
-    ...otherApps.map((app) => (
-      `• ${app.appName} (${app.platform}): ${money(app.earningsMicros)} · 노출 ${number.format(app.impressions)}회`
-    )),
     "",
     `📈 **누적 예상 수익 (${dateKey(cumulativeStartDate)}~${dateKey(date)})**`,
     `**${money(cumulativeEarningsMicros)} / ${money(payoutTargetMicros)} (${goalPercent}%)**`,
@@ -118,6 +105,10 @@ function normalizePlatform(platform: string): string {
   if (platform.toLowerCase() === "android") return "Android";
   if (platform.toLowerCase() === "ios") return "iOS";
   return platform;
+}
+
+function shortAppName(appName: string): string {
+  return appName.split(" - ")[0]?.trim() || appName;
 }
 
 function platformIcon(platform: string): string {
