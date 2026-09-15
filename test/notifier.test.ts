@@ -9,21 +9,36 @@ const notification = {
   cumulativeEarningsMicros: 72_430_000_000,
   payoutTargetMicros: 100_000_000_000,
   apps: [
-    { appId: "b", appName: "앱 B", earningsMicros: 4_220_000_000, impressions: 6_120 },
-    { appId: "a", appName: "앱 A", earningsMicros: 8_210_000_000, impressions: 12_300 },
+    { appId: "b", appName: "앱 B", platform: "iOS", earningsMicros: 4_220_000_000, impressions: 6_120 },
+    { appId: "a", appName: "앱 A", platform: "Android", earningsMicros: 8_210_000_000, impressions: 12_300 },
   ],
 };
 
 test("전체 합계와 수익순 앱 목록을 Discord 메시지로 만든다", () => {
   const message = formatMessage(notification);
 
-  assert.match(message, /전체 예상 수익: ₩12,430/);
+  assert.match(message, /통합/);
+  assert.match(message, /예상 수익: \*\*₩12,430\*\*/);
   assert.ok(message.indexOf("앱 A") < message.indexOf("앱 B"));
-  assert.match(message, /노출수: 18,420/);
+  assert.match(message, /노출수: 18,420회/);
   assert.match(message, /eCPM: ₩675/);
+  assert.match(message, /Android: \*\*₩8,210\*\* · 노출 12,300회/);
+  assert.match(message, /iOS: \*\*₩4,220\*\* · 노출 6,120회/);
+  assert.match(message, /수익 우세: 🤖 Android \(\+₩3,990\)/);
+  assert.match(message, /노출 우세: 🤖 Android \(\+6,180회\)/);
   assert.match(message, /누적 예상 수익 \(2026-01-01~2026-09-03\)/);
   assert.match(message, /₩72,430 \/ ₩100,000 \(72\.4%\)/);
   assert.match(message, /지급 목표까지 ₩27,570 남음/);
+});
+
+test("플랫폼 데이터가 없으면 0원으로 비교한다", () => {
+  const message = formatMessage({
+    ...notification,
+    apps: notification.apps.filter((app) => app.platform === "Android"),
+  });
+
+  assert.match(message, /iOS: \*\*₩0\*\* · 노출 0회/);
+  assert.match(message, /🍎 iOS\*\*\n• 수익 데이터 없음/);
 });
 
 test("Discord 웹훅에 content 본문을 전송한다", async () => {

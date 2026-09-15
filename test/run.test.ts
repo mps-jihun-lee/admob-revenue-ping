@@ -33,6 +33,7 @@ test("같은 날짜의 알림은 성공 후 다시 보내지 않는다", async (
       return [{
         appId: "app-1",
         appName: "테스트 앱",
+        platform: "Android",
         earningsMicros: 1_000_000,
         impressions: 10,
       }];

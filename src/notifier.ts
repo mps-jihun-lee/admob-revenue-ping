@@ -61,14 +61,47 @@ export function formatMessage(notification: RevenueNotification): string {
   const progressBar = `${"█".repeat(filledBlocks)}${"░".repeat(10 - filledBlocks)}`;
   const remainingMicros = Math.max(0, payoutTargetMicros - cumulativeEarningsMicros);
   const sorted = [...apps].sort((a, b) => b.earningsMicros - a.earningsMicros);
+  const number = new Intl.NumberFormat("ko-KR");
+  const platformNames = ["Android", "iOS"];
+  const platformSummaries = platformNames.map((platform) => {
+    const platformApps = sorted.filter((app) => normalizePlatform(app.platform) === platform);
+    return {
+      platform,
+      apps: platformApps,
+      earningsMicros: platformApps.reduce((sum, app) => sum + app.earningsMicros, 0),
+      impressions: platformApps.reduce((sum, app) => sum + app.impressions, 0),
+    };
+  });
+  const android = platformSummaries[0]!;
+  const ios = platformSummaries[1]!;
+  const otherApps = sorted.filter((app) => !platformNames.includes(normalizePlatform(app.platform)));
   const lines = [
     `💰 **AdMob 일일 수익 — ${date.month}월 ${date.day}일**`,
     "",
-    `**전체 예상 수익: ${money(totalMicros)}**`,
-    ...sorted.map((app) => `• ${app.appName}: ${money(app.earningsMicros)}`),
-    "",
-    `노출수: ${new Intl.NumberFormat("ko-KR").format(totalImpressions)}`,
+    "🌐 **통합**",
+    `예상 수익: **${money(totalMicros)}**`,
+    `노출수: ${number.format(totalImpressions)}회`,
     `eCPM: ${money(eCpmMicros)}`,
+    "",
+    "📊 **플랫폼 비교**",
+    ...platformSummaries.map((summary) => (
+      `${platformIcon(summary.platform)} ${summary.platform}: **${money(summary.earningsMicros)}** · 노출 ${number.format(summary.impressions)}회`
+    )),
+    comparisonLine("수익", android.earningsMicros, ios.earningsMicros, money),
+    comparisonLine("노출", android.impressions, ios.impressions, (value) => `${number.format(value)}회`),
+    "",
+    "📱 **앱별 상세**",
+    ...platformSummaries.flatMap((summary) => [
+      `**${platformIcon(summary.platform)} ${summary.platform}**`,
+      ...(summary.apps.length === 0
+        ? ["• 수익 데이터 없음"]
+        : summary.apps.map((app) => (
+          `• ${app.appName}: ${money(app.earningsMicros)} · 노출 ${number.format(app.impressions)}회`
+        ))),
+    ]),
+    ...otherApps.map((app) => (
+      `• ${app.appName} (${app.platform}): ${money(app.earningsMicros)} · 노출 ${number.format(app.impressions)}회`
+    )),
     "",
     `📈 **누적 예상 수익 (${dateKey(cumulativeStartDate)}~${dateKey(date)})**`,
     `**${money(cumulativeEarningsMicros)} / ${money(payoutTargetMicros)} (${goalPercent}%)**`,
@@ -79,4 +112,26 @@ export function formatMessage(notification: RevenueNotification): string {
     "_보고서의 누적 예상 수익 기준이며, 월말 확정액·실제 지급 잔액과 다를 수 있습니다._",
   ];
   return lines.join("\n");
+}
+
+function normalizePlatform(platform: string): string {
+  if (platform.toLowerCase() === "android") return "Android";
+  if (platform.toLowerCase() === "ios") return "iOS";
+  return platform;
+}
+
+function platformIcon(platform: string): string {
+  return platform === "Android" ? "🤖" : platform === "iOS" ? "🍎" : "📱";
+}
+
+function comparisonLine(
+  label: string,
+  androidValue: number,
+  iosValue: number,
+  formatDifference: (value: number) => string,
+): string {
+  if (androidValue === iosValue) return `${label}: 동률`;
+  const winner = androidValue > iosValue ? "Android" : "iOS";
+  const difference = Math.abs(androidValue - iosValue);
+  return `${label} 우세: ${platformIcon(winner)} ${winner} (+${formatDifference(difference)})`;
 }

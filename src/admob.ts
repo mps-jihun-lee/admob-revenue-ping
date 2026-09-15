@@ -11,6 +11,7 @@ export interface AccountInfo {
 export interface AppRevenue {
   appId: string;
   appName: string;
+  platform: string;
   earningsMicros: number;
   impressions: number;
 }
@@ -56,7 +57,7 @@ export class AdMobClient {
       data: {
         reportSpec: {
           dateRange: { startDate: date, endDate: date },
-          dimensions: ["APP"],
+          dimensions: ["APP", "PLATFORM"],
           metrics: ["ESTIMATED_EARNINGS", "IMPRESSIONS"],
           localizationSettings: { currencyCode, languageCode: "ko-KR" },
         },
@@ -94,11 +95,13 @@ export function parseReport(envelopes: ReportEnvelope[]): AppRevenue[] {
     const row = envelope.row;
     if (!row) return [];
     const app = row.dimensionValues?.APP;
+    const platform = row.dimensionValues?.PLATFORM;
     const earnings = row.metricValues?.ESTIMATED_EARNINGS;
     const impressions = row.metricValues?.IMPRESSIONS;
     return [{
       appId: app?.value ?? "unknown",
       appName: app?.displayLabel ?? app?.value ?? "알 수 없는 앱",
+      platform: platform?.displayLabel ?? platform?.value ?? "알 수 없는 플랫폼",
       earningsMicros: metricNumber(earnings, "micros"),
       impressions: metricNumber(impressions, "integer"),
     }];

@@ -15,8 +15,8 @@ if (command === "demo") {
     cumulativeEarningsMicros: 72_430_000_000,
     payoutTargetMicros: 100_000_000_000,
     apps: [
-      { appId: "demo-1", appName: "앱 A", earningsMicros: 8_210_000_000, impressions: 12_300 },
-      { appId: "demo-2", appName: "앱 B", earningsMicros: 4_220_000_000, impressions: 6_120 },
+      { appId: "demo-1", appName: "앱 A", platform: "Android", earningsMicros: 8_210_000_000, impressions: 12_300 },
+      { appId: "demo-2", appName: "앱 B", platform: "iOS", earningsMicros: 4_220_000_000, impressions: 6_120 },
     ],
   }));
 } else if (command === "auth") {

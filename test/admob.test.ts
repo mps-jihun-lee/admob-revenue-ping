@@ -9,6 +9,7 @@ test("스트리밍 보고서에서 앱별 수익과 노출수를 읽는다", () 
       row: {
         dimensionValues: {
           APP: { value: "ca-app-pub-1~1", displayLabel: "오늘의 앱" },
+          PLATFORM: { value: "Android", displayLabel: "Android" },
         },
         metricValues: {
           ESTIMATED_EARNINGS: { microsValue: "6500000" },
@@ -22,6 +23,7 @@ test("스트리밍 보고서에서 앱별 수익과 노출수를 읽는다", () 
   assert.deepEqual(result, [{
     appId: "ca-app-pub-1~1",
     appName: "오늘의 앱",
+    platform: "Android",
     earningsMicros: 6_500_000,
     impressions: 1_234,
   }]);
