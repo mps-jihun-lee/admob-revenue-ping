@@ -58,3 +58,15 @@ test("Discord가 오류를 반환하면 전송 실패로 처리한다", async ()
     /HTTP 429/,
   );
 });
+
+test("보고서에 행이 없으면 데이터 없음 경고를 넣는다", () => {
+  const message = formatMessage({ ...notification, apps: [] });
+
+  assert.match(message, /AdMob 보고서에 이 날짜 데이터가 없습니다/);
+});
+
+test("보고서에 행이 있으면 데이터 없음 경고를 넣지 않는다", () => {
+  const message = formatMessage(notification);
+
+  assert.doesNotMatch(message, /데이터가 없습니다/);
+});

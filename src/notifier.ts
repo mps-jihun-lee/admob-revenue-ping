@@ -78,6 +78,12 @@ export function formatMessage(notification: RevenueNotification): string {
   const lines = [
     `💰 **AdMob 일일 수익 — ${date.month}월 ${date.day}일**`,
     "",
+    ...(apps.length === 0
+      ? [
+        "⚠️ **AdMob 보고서에 이 날짜 데이터가 없습니다.** 광고 요청이 한 건도 기록되지 않았으니 AdMob 콘솔에서 계정 상태와 정책 센터를 확인하세요.",
+        "",
+      ]
+      : []),
     "🌐 **통합**",
     `예상 수익: **${money(totalMicros)}**`,
     `노출수: ${number.format(totalImpressions)}회`,
