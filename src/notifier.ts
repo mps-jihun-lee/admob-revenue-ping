@@ -66,11 +66,14 @@ export function formatMessage(notification: RevenueNotification): string {
   const defaultAppName = shortAppName(sorted[0]?.appName ?? "앱");
   const platformSummaries = platformNames.map((platform) => {
     const platformApps = sorted.filter((app) => normalizePlatform(app.platform) === platform);
+    const earningsMicros = platformApps.reduce((sum, app) => sum + app.earningsMicros, 0);
+    const impressions = platformApps.reduce((sum, app) => sum + app.impressions, 0);
     return {
       platform,
       appName: shortAppName(platformApps[0]?.appName ?? defaultAppName),
-      earningsMicros: platformApps.reduce((sum, app) => sum + app.earningsMicros, 0),
-      impressions: platformApps.reduce((sum, app) => sum + app.impressions, 0),
+      earningsMicros,
+      impressions,
+      eCpmMicros: impressions === 0 ? 0 : earningsMicros * 1_000 / impressions,
     };
   });
   const android = platformSummaries[0]!;
@@ -91,10 +94,11 @@ export function formatMessage(notification: RevenueNotification): string {
     "",
     "📊 **플랫폼별 수익**",
     ...platformSummaries.map((summary) => (
-      `${platformIcon(summary.platform)} ${summary.appName} ${summary.platform}: **${money(summary.earningsMicros)}** · 노출 ${number.format(summary.impressions)}회`
+      `${platformIcon(summary.platform)} ${summary.appName} ${summary.platform}: **${money(summary.earningsMicros)}** · 노출 ${number.format(summary.impressions)}회 · eCPM ${money(summary.eCpmMicros)}`
     )),
     comparisonLine("수익", android.earningsMicros, ios.earningsMicros, money),
     comparisonLine("노출", android.impressions, ios.impressions, (value) => `${number.format(value)}회`),
+    comparisonLine("eCPM", android.eCpmMicros, ios.eCpmMicros, money),
     "",
     `📈 **누적 예상 수익 (${dateKey(cumulativeStartDate)}~${dateKey(date)})**`,
     `**${money(cumulativeEarningsMicros)} / ${money(payoutTargetMicros)} (${goalPercent}%)**`,
