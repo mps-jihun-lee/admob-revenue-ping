@@ -5,6 +5,11 @@ import { DiscordNotifier, formatMessage } from "../src/notifier.js";
 const notification = {
   date: { year: 2026, month: 9, day: 3 },
   currencyCode: "KRW",
+  weeklyStartDate: { year: 2026, month: 8, day: 28 },
+  weeklyApps: [
+    { appId: "b", appName: "여비 - iOS", platform: "iOS", earningsMicros: 20_000_000_000, impressions: 40_000 },
+    { appId: "a", appName: "여비 - Android", platform: "Android", earningsMicros: 60_000_000_000, impressions: 100_000 },
+  ],
   cumulativeStartDate: { year: 2026, month: 1, day: 1 },
   cumulativeEarningsMicros: 72_430_000_000,
   payoutTargetMicros: 100_000_000_000,
@@ -26,6 +31,9 @@ test("전체 합계와 수익순 앱 목록을 Discord 메시지로 만든다", 
   assert.match(message, /수익 우세: 🤖 Android \(\+₩3,990\)/);
   assert.match(message, /노출 우세: 🤖 Android \(\+6,180회\)/);
   assert.match(message, /eCPM 우세: 🍎 iOS \(\+₩22\)/);
+  assert.match(message, /최근 7일 eCPM \(2026-08-28~2026-09-03\)/);
+  assert.match(message, /🤖 Android ₩600 · 🍎 iOS ₩500/);
+  assert.match(message, /7일 eCPM 우세: 🤖 Android \(\+₩100\)/);
   assert.match(message, /누적 예상 수익 \(2026-01-01~2026-09-03\)/);
   assert.match(message, /₩72,430 \/ ₩100,000 \(72\.4%\)/);
   assert.match(message, /지급 목표까지 ₩27,570 남음/);

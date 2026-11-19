@@ -25,6 +25,16 @@ export function previousDate(now: Date, timeZone: string): CalendarDate {
   };
 }
 
+export function addDays(date: CalendarDate, days: number): CalendarDate {
+  const value = new Date(Date.UTC(date.year, date.month - 1, date.day));
+  value.setUTCDate(value.getUTCDate() + days);
+  return {
+    year: value.getUTCFullYear(),
+    month: value.getUTCMonth() + 1,
+    day: value.getUTCDate(),
+  };
+}
+
 export function dateKey(date: CalendarDate): string {
   return [date.year, date.month, date.day]
     .map((value, index) => index === 0 ? String(value) : String(value).padStart(2, "0"))

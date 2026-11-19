@@ -5,6 +5,8 @@ export interface RevenueNotification {
   date: CalendarDate;
   currencyCode: string;
   apps: AppRevenue[];
+  weeklyStartDate: CalendarDate;
+  weeklyApps: AppRevenue[];
   cumulativeStartDate: CalendarDate;
   cumulativeEarningsMicros: number;
   payoutTargetMicros: number;
@@ -37,6 +39,8 @@ export function formatMessage(notification: RevenueNotification): string {
     date,
     currencyCode,
     apps,
+    weeklyStartDate,
+    weeklyApps,
     cumulativeStartDate,
     cumulativeEarningsMicros,
     payoutTargetMicros,
@@ -78,6 +82,8 @@ export function formatMessage(notification: RevenueNotification): string {
   });
   const android = platformSummaries[0]!;
   const ios = platformSummaries[1]!;
+  const weeklyAndroidECpm = platformECpmMicros(weeklyApps, "Android");
+  const weeklyIosECpm = platformECpmMicros(weeklyApps, "iOS");
   const lines = [
     `💰 **AdMob 일일 수익 — ${date.month}월 ${date.day}일**`,
     "",
@@ -100,6 +106,10 @@ export function formatMessage(notification: RevenueNotification): string {
     comparisonLine("노출", android.impressions, ios.impressions, (value) => `${number.format(value)}회`),
     comparisonLine("eCPM", android.eCpmMicros, ios.eCpmMicros, money),
     "",
+    `📅 **최근 7일 eCPM (${dateKey(weeklyStartDate)}~${dateKey(date)})**`,
+    `🤖 Android ${money(weeklyAndroidECpm)} · 🍎 iOS ${money(weeklyIosECpm)}`,
+    comparisonLine("7일 eCPM", weeklyAndroidECpm, weeklyIosECpm, money),
+    "",
     `📈 **누적 예상 수익 (${dateKey(cumulativeStartDate)}~${dateKey(date)})**`,
     `**${money(cumulativeEarningsMicros)} / ${money(payoutTargetMicros)} (${goalPercent}%)**`,
     `진행률: ${progressBar}`,
@@ -109,6 +119,13 @@ export function formatMessage(notification: RevenueNotification): string {
     "_보고서의 누적 예상 수익 기준이며, 월말 확정액·실제 지급 잔액과 다를 수 있습니다._",
   ];
   return lines.join("\n");
+}
+
+function platformECpmMicros(apps: AppRevenue[], platform: string): number {
+  const platformApps = apps.filter((app) => normalizePlatform(app.platform) === platform);
+  const earningsMicros = platformApps.reduce((sum, app) => sum + app.earningsMicros, 0);
+  const impressions = platformApps.reduce((sum, app) => sum + app.impressions, 0);
+  return impressions === 0 ? 0 : earningsMicros * 1_000 / impressions;
 }
 
 function normalizePlatform(platform: string): string {

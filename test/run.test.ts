@@ -38,6 +38,9 @@ test("같은 날짜의 알림은 성공 후 다시 보내지 않는다", async (
         impressions: 10,
       }];
     },
+    async getRangeRevenue() {
+      return [];
+    },
     async getCumulativeRevenue() {
       return 42_000_000;
     },
@@ -79,6 +82,9 @@ test("전송 실패 시 날짜를 기록하지 않아 다음 실행에서 재시
       };
     },
     async getDailyRevenue() {
+      return [];
+    },
+    async getRangeRevenue() {
       return [];
     },
     async getCumulativeRevenue() {

@@ -49,6 +49,16 @@ export class AdMobClient {
     date: CalendarDate,
     currencyCode: string,
   ): Promise<AppRevenue[]> {
+    return this.getRangeRevenue(publisherId, reportType, date, date, currencyCode);
+  }
+
+  async getRangeRevenue(
+    publisherId: string,
+    reportType: ReportType,
+    startDate: CalendarDate,
+    endDate: CalendarDate,
+    currencyCode: string,
+  ): Promise<AppRevenue[]> {
     const report = reportType === "mediation" ? "mediationReport" : "networkReport";
     const url = `https://admob.googleapis.com/v1/accounts/${encodeURIComponent(publisherId)}/${report}:generate`;
     const response = await this.auth.request<ReportEnvelope[]>({
@@ -56,7 +66,7 @@ export class AdMobClient {
       method: "POST",
       data: {
         reportSpec: {
-          dateRange: { startDate: date, endDate: date },
+          dateRange: { startDate, endDate },
           dimensions: ["APP", "PLATFORM"],
           metrics: ["ESTIMATED_EARNINGS", "IMPRESSIONS"],
           localizationSettings: { currencyCode, languageCode: "ko-KR" },
