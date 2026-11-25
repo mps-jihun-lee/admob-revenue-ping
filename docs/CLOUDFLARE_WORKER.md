@@ -75,16 +75,19 @@ sed -n 's/^BANDALART_ADMOB_WEBHOOK_URL=//p' "$B/admob.env" | tr -d '\n' | npx wr
 
 중복 알림은 Worker와 launchd가 같은 날짜를 함께 보낼 때 생긴다. launchd는 D1을 모르므로 **첫 Cron(00:10 UTC) 전에 launchd를 끈다.**
 
-1. D1 생성: `npx wrangler d1 create admob-revenue-ping` → 나온 `database_id`를 `wrangler.jsonc`에 넣는다.
-2. 마이그레이션: `npx wrangler d1 migrations apply admob-revenue-ping --remote`
-3. 로컬이 이미 보낸 날짜를 D1에 넣는다. 수동 실행이 그 날짜를 다시 보내지 않게 한다. 날짜는 `.data/state.json`과 `BandalartAlerts/state/admob.json`의 `lastSentDate`.
+1. 계정 Cron 수가 4개 이하인지 본다(무료 플랜 5개).
+2. D1 생성: `npx wrangler d1 create admob-revenue-ping` → 나온 `database_id`를 `wrangler.jsonc`에 넣는다.
+3. 마이그레이션: `npx wrangler d1 migrations apply admob-revenue-ping --remote`
+4. 로컬이 이미 보낸 날짜를 D1에 넣는다. 날짜는 `.data/state.json`과 `BandalartAlerts/state/admob.json`의 `lastSentDate`.
    ```bash
    npx wrangler d1 execute admob-revenue-ping --remote --command \
      "INSERT OR IGNORE INTO admob_sends VALUES ('pub-여비', '2026-11-24', 'SENT', 0), ('pub-반다라트', '2026-11-24', 'SENT', 0)"
    ```
-4. 비밀값 등록 (위 절)
-5. 배포: `npx wrangler deploy`
-6. launchd 중지 (아래)
+5. 배포: `npx wrangler deploy`. 비밀값은 Worker가 있어야 등록되므로 배포가 먼저다. 다음 Cron 전에 6까지 끝낸다.
+6. 비밀값 등록 (위 절)
+7. launchd 중지 (아래)
+
+2026-11-25 실제 이전: D1 `a2e1ed65-1ab3-4f4b-8683-be42e95611ee`, 시드 두 계정 2026-11-24, 비밀값 7개는 `wrangler secret bulk`(stdin JSON)로 한 번에 등록, launchd 2개 중지. 첫 Cron은 2026-11-26 00:10 UTC.
 
 ## 확인
 

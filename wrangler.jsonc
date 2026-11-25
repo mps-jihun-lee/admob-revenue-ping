@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "admob-revenue-ping",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "a2e1ed65-1ab3-4f4b-8683-be42e95611ee",
       "migrations_dir": "migrations"
     }
   ]
