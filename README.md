@@ -96,6 +96,8 @@ pnpm once -- --force
 
 ## 4. 매일 자동 실행
 
+> 현재 운영은 Cloudflare Worker Cron Trigger가 맡는다. 배포·비밀값·로컬로 되돌리는 방법은 [docs/CLOUDFLARE_WORKER.md](docs/CLOUDFLARE_WORKER.md)를 본다. 아래는 로컬에서 직접 돌릴 때의 방법이다.
+
 AdMob 통계는 반영에 몇 시간이 걸릴 수 있으므로 아침 9시 이후 실행을 권장합니다. `crontab -e`에 다음 형태로 등록하세요. `pnpm`과 저장소 경로는 `command -v pnpm`, `pwd`로 확인한 실제 절대 경로로 바꿔야 합니다.
 
 ```cron
