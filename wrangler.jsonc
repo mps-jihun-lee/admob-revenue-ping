@@ -7,8 +7,10 @@
   "compatibility_date": "2026-10-13",
   "workers_dev": false,
   "preview_urls": false,
-  // 00:10 UTC = 09:10 KST. 로컬 launchd와 같은 시각이다.
-  "triggers": { "crons": ["10 0 * * *"] },
+  // 00:10 UTC = 09:10 KST(로컬 launchd와 같은 시각). 01:10·02:10은 재시도다. 표현식 하나라 트리거 1개로 센다.
+  // 이미 보낸 날짜(D1 행)는 건너뛰므로 재시도가 중복을 만들지 않는다. 토큰·AdMob 실패나 Discord 4xx일 때만 다시 보낸다.
+  // 모든 계정의 보고 시간대에서 재시도 시각이 같은 날이어야 한다(Asia/Seoul 기준 09:10~11:10).
+  "triggers": { "crons": ["10 0-2 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",

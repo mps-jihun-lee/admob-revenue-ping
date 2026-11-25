@@ -14,7 +14,7 @@
     "demo": "node --import tsx src/cli.ts demo",
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm typecheck && pnpm test",
+    "check": "pnpm typecheck && pnpm test && pnpm worker:check",
     "worker:check": "wrangler deploy --dry-run --outdir .wrangler/dry-run"
   },
   "dependencies": {

@@ -47,7 +47,13 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const SECRET_NAME = /^[A-Z][A-Z0-9_]*$/;
 
 export function parseWorkerAccounts(raw: string): WorkerAccount[] {
-  const accounts = JSON.parse(raw) as unknown;
+  let accounts: unknown;
+  try {
+    accounts = JSON.parse(raw);
+  } catch {
+    // JSON.parse 오류 메시지에는 원문 조각(게시자 ID)이 들어가 로그에 남는다. 원래 오류를 버린다.
+    throw new Error("ACCOUNTS가 올바른 JSON이 아닙니다.");
+  }
   if (!Array.isArray(accounts) || accounts.length === 0) throw new Error("ACCOUNTS에는 계정이 하나 이상 필요합니다.");
   const parsed = accounts.map((value, index) => {
     const account = (value ?? {}) as Record<string, unknown>;
@@ -69,6 +75,9 @@ export function parseWorkerAccounts(raw: string): WorkerAccount[] {
   });
   if (new Set(parsed.map((account) => account.publisherId)).size !== parsed.length) {
     throw new Error("ACCOUNTS에 같은 publisherId가 중복되었습니다.");
+  }
+  if (new Set(parsed.map((account) => account.name)).size !== parsed.length) {
+    throw new Error("ACCOUNTS에 같은 name이 중복되었습니다.");
   }
   return parsed;
 }
@@ -111,6 +120,8 @@ async function runAccount(
   const webhookUrl = env[account.webhookSecret];
   if (typeof refreshToken !== "string" || !refreshToken) throw new Error(`비밀값 ${account.refreshTokenSecret}가 없습니다.`);
   if (typeof webhookUrl !== "string" || !webhookUrl) throw new Error(`비밀값 ${account.webhookSecret}가 없습니다.`);
+  // SENDING으로 선점한 뒤 URL 오류가 나면 게시되지 않았는데도 행이 남아 그날 알림이 영영 빠진다. 먼저 검증한다.
+  const discordUrl = discordWebhookUrl(webhookUrl, account.webhookSecret);
   const dryRun = env.DRY_RUN === "true";
 
   const accessToken = await refreshAccessToken(env.OAUTH_CLIENT_ID, env.OAUTH_CLIENT_SECRET, refreshToken, fetcher);
@@ -131,7 +142,7 @@ async function runAccount(
     return "already-sent";
   }
 
-  // 보고서 조회가 실패하면 D1에 아무것도 쓰지 않으므로 다음 실행이 다시 시도한다.
+  // 보고서 조회가 실패하면 D1에 아무것도 쓰지 않으므로 같은 날 다음 Cron(wrangler.jsonc의 재시도 시각)이 다시 시도한다.
   const notification = await collectNotification(account, client, info, date);
   const content = formatMessage(notification);
   if (dryRun) {
@@ -147,9 +158,9 @@ async function runAccount(
   if (claimed.meta.changes === 0) return "already-sent";
 
   try {
-    await sendDiscord(webhookUrl, content, fetcher);
+    await sendDiscord(discordUrl, content, fetcher);
   } catch (error) {
-    // Discord가 4xx로 거절한 것이 확실할 때만 기록을 지워 다음 실행에서 다시 보낸다.
+    // Discord가 4xx로 거절한 것이 확실할 때만 기록을 지워 같은 날 다음 Cron에서 다시 보낸다.
     // 타임아웃·네트워크 오류·5xx는 실제로 게시됐을 수 있어 SENDING을 남긴다.
     if (error instanceof DiscordRejected) {
       try {
@@ -217,22 +228,41 @@ class AccessTokenAuth implements AdMobAuth {
       body: options.data ? JSON.stringify(options.data) : null,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!response.ok) throw new Error(`AdMob API 실패: HTTP ${response.status} ${url.pathname}`);
+    if (!response.ok) {
+      await response.body?.cancel();
+      // 경로에는 게시자 ID가 들어 있어 작업 이름만 남긴다.
+      const operation = url.pathname.endsWith(":generate") ? "report:generate" : "accounts.get";
+      throw new Error(`AdMob API 실패: HTTP ${response.status} ${operation}`);
+    }
     return { data: await response.json() as T };
   }
 }
 
-async function sendDiscord(webhookUrl: string, content: string, fetcher: typeof fetch): Promise<void> {
-  const url = new URL(webhookUrl);
-  if (url.protocol !== "https:" || url.hostname !== "discord.com" ||
-      !url.pathname.startsWith("/api/webhooks/")) throw new Error("Invalid Discord endpoint");
+const DISCORD_HOSTS = new Set(["discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"]);
+
+/** 웹훅 URL을 검증한다. 오류에는 URL(웹훅 토큰 포함) 대신 비밀값 이름만 넣는다. */
+function discordWebhookUrl(raw: string, secretName: string): URL {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    throw new Error(`비밀값 ${secretName}가 올바른 URL이 아닙니다.`);
+  }
+  if (url.protocol !== "https:" || !DISCORD_HOSTS.has(url.hostname) || !url.pathname.startsWith("/api/webhooks/")) {
+    throw new Error(`비밀값 ${secretName}가 Discord 웹훅 URL이 아닙니다.`);
+  }
   url.searchParams.set("wait", "true");
+  return url;
+}
+
+async function sendDiscord(url: URL, content: string, fetcher: typeof fetch): Promise<void> {
   const response = await fetcher(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  await response.body?.cancel();
   if (response.status >= 400 && response.status < 500) throw new DiscordRejected(response.status);
   if (!response.ok) throw new Error(`Discord HTTP ${response.status}`);
 }
@@ -243,8 +273,6 @@ export class DiscordRejected extends Error {
     super(`Discord HTTP ${status}`);
   }
 }
-
-type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
 
 async function runCron(env: AdMobWorkerEnv): Promise<void> {
   try {
@@ -260,7 +288,8 @@ async function runCron(env: AdMobWorkerEnv): Promise<void> {
 }
 
 export default {
-  async scheduled(_controller: unknown, env: AdMobWorkerEnv, ctx: WaitUntil) {
-    ctx.waitUntil(runCron(env));
+  // waitUntil 대신 await해서 실패가 Cron 실행 결과(outcome)에 드러나게 한다.
+  async scheduled(_controller: unknown, env: AdMobWorkerEnv) {
+    await runCron(env);
   },
 };

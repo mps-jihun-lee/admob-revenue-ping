@@ -206,3 +206,50 @@ test("ACCOUNTS 설정을 검증한다", () => {
   assert.throws(() => parseWorkerAccounts(JSON.stringify([base, { ...base, name: "b" }])), /중복/);
   assert.throws(() => parseWorkerAccounts(JSON.stringify([{ ...base, publisherId: "1" }])), /pub-/);
 });
+
+test("같은 날짜를 동시에 처리하는 두 실행 중 하나만 보낸다", async () => {
+  const f = await fixture();
+  const results = await Promise.all([
+    runAdMobWorker(f.env, f.fetcher, NOW),
+    runAdMobWorker(f.env, f.fetcher, NOW),
+  ]);
+  assert.equal(f.sent.length, 2); // 계정 2개 × 한 번
+  const outcomes = results.flatMap((result) => Object.values(result)).sort();
+  assert.deepEqual(outcomes, ["already-sent", "already-sent", "sent", "sent"]);
+  assert.deepEqual(f.rows().map((row) => row.state), ["SENT", "SENT"]);
+});
+
+test("웹훅 URL이 잘못되면 선점 전에 실패해 행을 남기지 않고, 오류에 URL을 넣지 않는다", async () => {
+  for (const bad of ["not a url secret-token", "https://example.com/api/webhooks/1/secret-token"]) {
+    const f = await fixture();
+    f.env.YEOBEE_WEBHOOK_URL = bad;
+    await assert.rejects(runAdMobWorker(f.env, f.fetcher, NOW), (error: unknown) => {
+      assert.ok(error instanceof AggregateError);
+      const message = String((error.errors[0] as Error).message);
+      assert.match(message, /YEOBEE_WEBHOOK_URL/);
+      assert.doesNotMatch(message, /secret-token/);
+      return true;
+    });
+    assert.deepEqual(f.rows(), [{ publisher_id: "pub-222", report_date: "2026-11-25", state: "SENT" }]);
+  }
+});
+
+test("ACCOUNTS JSON 오류와 AdMob 오류에 게시자 ID를 넣지 않는다", async () => {
+  assert.throws(() => parseWorkerAccounts('[{"publisherId":pub-999}]'), (error: unknown) => {
+    assert.doesNotMatch(String(error), /pub-999/);
+    return true;
+  });
+  assert.throws(() => parseWorkerAccounts(JSON.stringify([
+    { name: "a", publisherId: "pub-1", refreshTokenSecret: "A", webhookSecret: "B" },
+    { name: "a", publisherId: "pub-2", refreshTokenSecret: "A", webhookSecret: "B" },
+  ])), /name이 중복/);
+
+  const f = await fixture({ reportStatus: () => 500 });
+  await assert.rejects(runAdMobWorker(f.env, f.fetcher, NOW), (error: unknown) => {
+    assert.ok(error instanceof AggregateError);
+    const messages = error.errors.map((item) => String((item as Error).message)).join(" ");
+    assert.match(messages, /HTTP 500 accounts\.get/);
+    assert.doesNotMatch(messages, /pub-111|pub-222/);
+    return true;
+  });
+});

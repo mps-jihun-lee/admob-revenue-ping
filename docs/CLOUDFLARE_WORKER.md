@@ -3,7 +3,7 @@
 로컬 launchd(`pnpm once`) 대신 Cloudflare Worker Cron Trigger가 매일 AdMob 전날 수익을 Discord로 보낸다. Mac을 꺼도 알림이 온다.
 
 ```text
-Cron 00:10 UTC (09:10 KST)
+Cron 00:10·01:10·02:10 UTC (09:10 KST, 재시도 2회)
   └─ admob-revenue-ping Worker (src/worker.ts)
        ├─ 계정마다: refresh token → oauth2.googleapis.com/token → access token
        ├─ AdMob API: 계정 정보(보고 시간대) → 어제·최근 7일·누적 보고서
@@ -14,7 +14,7 @@ Cron 00:10 UTC (09:10 KST)
 | 항목 | 값 |
 | --- | --- |
 | Worker | `admob-revenue-ping` (`wrangler.jsonc`, `workers_dev: false`, fetch 핸들러 없음) |
-| Cron | `10 0 * * *` (UTC). 무료 플랜 계정당 Cron Trigger 5개 중 1개 |
+| Cron | `10 0-2 * * *` (UTC). 표현식 하나라 무료 플랜 계정당 Cron Trigger 5개 중 1개. 01:10·02:10은 재시도 |
 | D1 | `admob-revenue-ping`, 테이블 `admob_sends` (`migrations/`) |
 | 계정 | 여비, 반다라트. 같은 OAuth 클라이언트, 계정별 refresh token과 Discord 웹훅 |
 
@@ -97,9 +97,11 @@ sed -n 's/^BANDALART_ADMOB_WEBHOOK_URL=//p' "$B/admob.env" | tr -d '\n' | npx wr
    npx wrangler dev --test-scheduled --env-file /tmp/dev.vars --persist-to /tmp/admob-state --port 8799
    curl "http://localhost:8799/__scheduled?cron=10+0+*+*+*"
    ```
+`DRY_RUN`을 빠뜨리거나 `"1"`처럼 다르게 쓰면 실제로 보낸다(로컬 D1은 비어 있다). 그래서 웹훅을 더미 URL로 둔다.
+
 3. 로그에 `[DRY_RUN] AdMob 여비 …` 메시지 두 개와 `AdMob cron {"여비":"dry-run","반다라트":"dry-run"}`가 나오면 정상이다. 확인 후 `dev.vars`를 지운다.
 
-배포 후 상태:
+배포 후 상태 (첫 Cron 뒤 `cpuTime`이 무료 한도 10ms 안인지 본다):
 
 ```bash
 npx wrangler tail admob-revenue-ping            # Cron 실행 로그 (실행 시각에 켜 둔다)
@@ -114,7 +116,8 @@ Cloudflare 대시보드 Workers > admob-revenue-ping > Logs에서도 Cron 결과
 - Discord가 받으면 `SENT`로 바꾼다.
 - Discord가 4xx로 거절하면 행을 지운다. 다음 실행(수동 포함)이 다시 보낸다.
 - 타임아웃·네트워크 오류·5xx면 `SENDING`을 남긴다. 실제로 게시됐을 수 있어 다시 보내지 않는다. 채널에 알림이 없으면 아래 "수동 재전송"으로 보낸다.
-- 토큰·AdMob 조회가 실패하면 행을 만들지 않는다. Cron은 하루 한 번이라 그날 알림은 빠진다. 로그에서 원인을 보고 수동 재전송한다.
+- 토큰·AdMob 조회가 실패하거나 웹훅 URL이 잘못되면 행을 만들지 않는다. 같은 날 01:10·02:10 UTC Cron이 다시 시도한다.
+- 이미 행이 있으면 재시도 Cron은 아무것도 보내지 않는다(조회 3건과 D1 조회 1건만 한다).
 - 한 계정이 실패해도 다른 계정은 보낸다.
 
 ### 수동 재전송
@@ -126,7 +129,15 @@ npx wrangler d1 execute admob-revenue-ping --remote --command \
   "DELETE FROM admob_sends WHERE publisher_id = 'pub-…' AND report_date = '2026-11-25' AND state = 'SENDING'"
 ```
 
-Worker에는 수동 실행 경로가 없다. 같은 날 안이라면 로컬에서 `pnpm once`(여비) 또는 반다라트 env로 `node --env-file=… --import tsx src/cli.ts once`를 한 번 실행한다. 로컬 상태 파일은 D1과 따로이므로 로컬 실행은 D1에 기록되지 않는다. 다음 날 Worker는 다음 날짜를 보내므로 겹치지 않는다.
+행을 지우면 같은 날 남은 재시도 Cron(01:10·02:10 UTC)이 보낸다. 재시도 시각이 지났다면 로컬 CLI로 보내고, **바로 D1에 SENT를 넣는다.** 로컬 CLI는 D1을 모르기 때문에, 넣지 않으면 남은 Cron이 같은 날짜를 한 번 더 보낼 수 있다.
+
+```bash
+pnpm once -- --force   # 여비. 반다라트는 node --env-file=$B/admob.env --import tsx src/cli.ts once --force
+npx wrangler d1 execute admob-revenue-ping --remote --command \
+  "INSERT OR REPLACE INTO admob_sends VALUES ('pub-…', '2026-11-25', 'SENT', 0)"
+```
+
+로컬 `--force` 전에 채널에 그날 알림이 정말 없는지 먼저 확인한다. `SENDING`은 "게시됐을 수도 있음"이다.
 
 ## refresh token 만료
 
