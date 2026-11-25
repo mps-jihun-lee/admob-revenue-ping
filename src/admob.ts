@@ -1,6 +1,11 @@
-import type { OAuth2Client } from "google-auth-library";
-import type { ReportType } from "./config.js";
 import type { CalendarDate } from "./date.js";
+import type { ReportType } from "./settings.js";
+
+// 로컬 CLI는 google-auth-library의 OAuth2Client를, Worker는 fetch 기반 구현(worker.ts)을 넘긴다.
+// Worker 번들에 Node API가 들어가지 않도록 이 파일은 google-auth-library를 import하지 않는다.
+export interface AdMobAuth {
+  request<T>(options: { url: string; method?: "POST"; data?: Record<string, unknown> }): Promise<{ data: T }>;
+}
 
 export interface AccountInfo {
   publisherId: string;
@@ -35,7 +40,7 @@ interface MetricValue {
 }
 
 export class AdMobClient {
-  constructor(private readonly auth: OAuth2Client) {}
+  constructor(private readonly auth: AdMobAuth) {}
 
   async getAccount(publisherId: string): Promise<AccountInfo> {
     const url = `https://admob.googleapis.com/v1/accounts/${encodeURIComponent(publisherId)}`;

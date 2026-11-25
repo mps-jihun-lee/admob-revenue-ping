@@ -1,7 +1,8 @@
 import type { AdMobClient } from "./admob.js";
 import type { Config } from "./config.js";
-import { addDays, dateKey, previousDate } from "./date.js";
+import { dateKey, previousDate } from "./date.js";
 import type { Notifier } from "./notifier.js";
+import { collectNotification } from "./report.js";
 import { FileStateStore } from "./state-store.js";
 
 export interface RunResult {
@@ -26,39 +27,8 @@ export async function runOnce(
     return { date: key, sent: false, appCount: 0 };
   }
 
-  const weeklyStartDate = addDays(date, -6);
-  const [apps, weeklyApps, cumulativeEarningsMicros] = await Promise.all([
-    client.getDailyRevenue(
-      config.publisherId,
-      config.reportType,
-      date,
-      account.currencyCode,
-    ),
-    client.getRangeRevenue(
-      config.publisherId,
-      config.reportType,
-      weeklyStartDate,
-      date,
-      account.currencyCode,
-    ),
-    client.getCumulativeRevenue(
-      config.publisherId,
-      config.reportType,
-      config.cumulativeStartDate,
-      date,
-      account.currencyCode,
-    ),
-  ]);
-  await notifier.send({
-    date,
-    currencyCode: account.currencyCode,
-    apps,
-    weeklyStartDate,
-    weeklyApps,
-    cumulativeStartDate: config.cumulativeStartDate,
-    cumulativeEarningsMicros,
-    payoutTargetMicros: config.payoutTarget * 1_000_000,
-  });
+  const notification = await collectNotification(config, client, account, date);
+  await notifier.send(notification);
   await store.markSent(key);
-  return { date: key, sent: true, appCount: apps.length };
+  return { date: key, sent: true, appCount: notification.apps.length };
 }

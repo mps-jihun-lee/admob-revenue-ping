@@ -1,0 +1,20 @@
+// AdMob 전날 수익 Discord 알림. 매일 한 번 ACCOUNTS의 계정(여비·반다라트)을 차례로 처리한다. 운영 방법은 docs/CLOUDFLARE_WORKER.md
+// 비밀값: ACCOUNTS(JSON, 게시자 ID 포함), OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, 계정별 refresh token·Discord 웹훅(이름은 ACCOUNTS에 적음)
+// 무료 플랜 Cron Trigger는 계정당 5개다. 이 Worker는 1개를 쓴다.
+{
+  "name": "admob-revenue-ping",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-13",
+  "workers_dev": false,
+  "preview_urls": false,
+  // 00:10 UTC = 09:10 KST. 로컬 launchd와 같은 시각이다.
+  "triggers": { "crons": ["10 0 * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "admob-revenue-ping",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
